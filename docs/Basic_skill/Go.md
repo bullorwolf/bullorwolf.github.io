@@ -160,7 +160,7 @@ go mod init go-sample
 
 文件名: hello.go，代码如下：
 
-```bash
+```go
 package main
 
 import "fmt"
@@ -244,7 +244,7 @@ fmt.Println("Hello, World!")
 
 ## 行分隔符
 
-在 Go 程序中，一行代表一个语句结束。每个语句不需要像 C 家族中的其它语言一样以分号 ; 结尾，因为这些工作都将由 Go 编译器自动完成。
+在 Go 程序中，一行代表一个语句结束。**每个语句不需要像 C 家族中的其它语言一样以分号 ; 结尾**，因为这些工作都将由 Go 编译器自动完成。
 
 如果你打算将多个语句写在同一行，它们则必须使用 ; 人为区分，但在实际开发中我们并不鼓励这种做法。
 
@@ -365,6 +365,342 @@ fruit = apples + oranges
 
 ---
 
+
+
+# 输入输出
+
+首先Go语言`fmt`包中提供了`Scanf`和`Printf`像C语言那样处理输入和输出，使用的格式控制字符中常见的和C语言一致，一部分则不一致。
+
+## 输出
+
+```go
+import "fmt"
+ 
+fmt.Print()    //输出没有换行
+fmt.Printf()   //格式化输出,类似C语言printf()函数
+fmt.Println()  //输出后换行
+```
+
+格式化打印占位符
+
+```go
+%v  原样输出
+%T  打印类型
+%t  bool类型
+%s  字符串
+%f  浮点
+%d  10进制
+%o  8进制
+%x  16进制 0-9 a-f
+%X  16进制 0-9 A-F
+%b  二进制数
+%c  打印字符
+%p  打印地址
+```
+
+## 输入
+
+```go
+import "fmt"
+ 
+var x int
+var y float64
+fmt.Scanln(&x)  //阻塞式的输入，Scanln只会接受一个回车
+fmt.Scanf("%d,%f",&x,&y)  //格式化输入，中间需要输入""中的符号
+fmt.Scan(&x) //从终端获取输入，存储在Scanln中的参数里，空格和换行符作为分隔符
+ 
+import "bufio"
+func main() {
+    fmt.Println("请输入一个字符串：")
+    reader := bufio.NewReader(os.Stdin)
+    s1, _ := reader.ReadString('\n')
+    fmt.Println("读到的数据：", s1)
+}
+```
+
+## bufio包
+
+```go
+package main
+ 
+import (
+    "bufio"
+    "fmt"
+    "strings"
+    "bytes"
+    "io"
+)
+ 
+// bufio 包实现了带缓存的 I/O 操作
+ 
+/**
+ * 首先看reader和writer基本的结构
+ * // Reader implements buffering for an io.Reader object.
+ * type Reader struct {
+ *  buf          []byte
+ *  rd           io.Reader // reader provided by the client
+ *  r, w         int       // buf read and write positions
+ *  err          error
+ *  lastByte     int
+ *  lastRuneSize int
+ * }
+ *
+ *
+ * // Writer implements buffering for an io.Writer object.
+ * // If an error occurs writing to a Writer, no more data will be
+ * // accepted and all subsequent writes will return the error.
+ * // After all data has been written, the client should call the
+ * // Flush method to guarantee all data has been forwarded to
+ * // the underlying io.Writer.
+ * type Writer struct {
+ *  err error
+ *  buf []byte
+ *  n   int
+ *  wr  io.Writer
+ * }
+ *
+ *
+ *
+ * // ReadWriter 集成了 bufio.Reader 和 bufio.Writer, 实现了 io.ReadWriter 接口
+ * type ReadWriter struct {
+ *  *Reader
+ *  *Writer
+ * }
+ */
+ 
+func main()  {
+    // 1: 使用bufio.NewReader构造一个reader
+    inputReadBuf := strings.NewReader("1234567890")
+    reader := bufio.NewReader(inputReadBuf)
+ 
+ 
+    // 2: 使用bufio.NewWriter构造一个writer
+    buf := bytes.NewBuffer(make([]byte, 0))
+    writer := bufio.NewWriter(buf)
+ 
+ 
+    // 3: 函数Peek函数: 返回缓存的一个Slice(引用,不是拷贝)，引用缓存中前n字节数据
+    // > 如果引用的数据长度小于 n，则返回一个错误信息
+    // > 如果 n 大于缓存的总大小，则返回 ErrBufferFull
+    // 通过Peek的返回值，可以修改缓存中的数据, 但不能修改底层io.Reader中的数据
+    b, err := reader.Peek(5)
+    if err != nil {
+        fmt.Printf("Read data error")
+        return
+    }
+    // 修改第一个字符
+    b[0] = 'A'
+    // 重新读取
+    b, _ = reader.Peek(5)
+    writer.Write(b)
+    writer.Flush()
+    fmt.Println("buf(Changed): ", buf, "\ninputReadBuf(Not Changed): ", inputReadBuf)
+ 
+ 
+    // 4: Read函数, 每次读取一定量的数据, 这个由buf大小觉得, 所以我们可以循环读取数据, 直到Read返回0说明读取数据结束
+    for {
+        b1 := make([]byte, 3)
+        n1, _ := reader.Read(b1)
+        if n1 <= 0 {
+            break
+        }
+        fmt.Println(n1, string(b1))
+    }
+ 
+ 
+    // 5: ReadByte和UnreadByte函数
+    // ReadByte 从 b 中读出一个字节并返回, 如果 b 中无可读数据，则返回一个错误
+    // UnreadByte 撤消最后一次读出的字节, 只有最后读出的字节可以被撤消, 无论任何操作，只要有内容被读出，就可以用 UnreadByte 撤消一个字节
+    inputReadBuf2 := strings.NewReader("1234567890")
+    reader2 := bufio.NewReader(inputReadBuf2)
+    // 读一个字节
+    b2, _ := reader2.ReadByte()
+    fmt.Println(string(b2))
+    // Unread一个字节
+    reader2.UnreadByte()
+    b2, _ = reader2.ReadByte()
+    fmt.Println(string(b2))
+ 
+ 
+    // 6: ReadRune和UnreadRune函数, 类似上面两个函数
+    // ReadRune读出一个 UTF8 编码的字符并返回编码长度, 如果UTF8序列无法解码出一个正确的Unicode字符, 则只读出b中的一个字节，size 返回 1
+    inputReadBuf3 := strings.NewReader("中文1234567890")
+    reader3 := bufio.NewReader(inputReadBuf3)
+    b3, size, _ := reader3.ReadRune()
+    fmt.Println(string(b3), size)
+    reader3.UnreadRune()
+    b3, size, _ = reader3.ReadRune()
+    fmt.Println(string(b3), size)
+    // 执行UnreadRune时候, 如果之前一步不是ReadRune, 那么会报错, 看下面
+    b33, _ := reader3.ReadByte()
+    fmt.Println(string(b33))
+    err3 := reader3.UnreadRune()
+    if err3 != nil {
+        fmt.Println("ERR")
+    }
+ 
+ 
+    // 7: 读取缓冲区中数据字节数(只有执行读才会使用到缓冲区, 否则是没有的)
+    inputReadBuf4 := strings.NewReader("中文1234567890")
+    reader4 := bufio.NewReader(inputReadBuf4)
+    // 下面返回0, 因为还没有开始读取, 缓冲区没有数据
+    fmt.Println(reader4.Buffered())
+    // 下面返回strings的整体长度16(一个人中文是3长度)
+    reader4.Peek(1)
+    fmt.Println(reader4.Buffered())
+    // 下面返回15, 因为readByte已经读取一个字节数据, 所以缓冲区还有15字节
+    reader4.ReadByte()
+    fmt.Println(reader4.Buffered())
+    // 下面的特别有意思: 上面已经读取了一个字节, 想当于是将"中"读取了1/3, 那么如果现在使用readRune读取, 那么
+    // 由于无法解析, 那么仅仅读取一个byte, 所以下面的结果很显然
+    // 第一次: 无法解析, 那么返回一个byte, 所以输出的是14
+    reader4.ReadRune()
+    fmt.Println(reader4.Buffered())
+    // 第二次读取, 还剩下"中"最后一个字节, 所以也会err, 所以输出13
+    reader4.ReadRune()
+    fmt.Println(reader4.Buffered())
+    // 现在"中"读完了, 那么开始完整读取"文", 这个OK的, 可以解析的, 所以可以读取三字节, 那么剩下10字节
+    reader4.ReadRune()
+    fmt.Println(reader4.Buffered())
+ 
+ 
+    // 8: ReadSlice查找 delim 并返回 delim 及其之前的所有数据的切片, 该操作会读出数据，返回的切片是已读出数据的"引用"
+    // 如果 ReadSlice 在找到 delim 之前遇到错误, 则读出缓存中的所有数据并返回，同时返回遇到error(通常是 io.EOF)
+    // 如果 在整个缓存中都找不到 delim，则返回 ErrBufferFull
+    // 如果 ReadSlice 能找到 delim，则返回 nil
+    // 注意: 因为返回的Slice数据有可能被下一次读写操作修改, 因此大多数操作应该使用 ReadBytes 或 ReadString，它们返回数据copy
+    // 不推荐!
+    inputReadBuf5 := strings.NewReader("中文123 4567 890")
+    reader5 := bufio.NewReader(inputReadBuf5)
+    for ; ;  {
+        b5 , err := reader5.ReadSlice(' ')
+        fmt.Println(string(b5))
+        // 读到最后
+        if err == io.EOF {
+            break
+        }
+    }
+ 
+ 
+    // 9: ReadLine 是一个低级的原始的行读取操作, 一般应该使用 ReadBytes('\n') 或 ReadString('\n')
+    // ReadLine 通过调用 ReadSlice 方法实现，返回的也是"引用", 回一行数据，不包括行尾标记(\n 或 \r\n)
+    // 如果 在缓存中找不到行尾标记，设置 isPrefix 为 true，表示查找未完成
+    // 如果 在当前缓存中找到行尾标记，将 isPrefix 设置为 false，表示查找完成
+    // 如果 ReadLine 无法获取任何数据，则返回一个错误信息(通常是 io.EOF)
+    // 不推荐!
+    inputReadBuf6 := strings.NewReader("中文123\n4567\n890")
+    reader6 := bufio.NewReader(inputReadBuf6)
+    for ; ;  {
+        l, p, err := reader6.ReadLine()
+        fmt.Println(string(l), p, err)
+        if err == io.EOF {
+            break
+        }
+    }
+ 
+ 
+    // 10: ReadBytes查找 delim 并读出 delim 及其之前的所有数据
+    // 如果 ReadBytes 在找到 delim 之前遇到错误, 则返回遇到错误之前的所有数据，同时返回遇到的错误(通常是 io.EOF)
+    // 如果 ReadBytes 找不到 delim 时，err != nil
+    // 返回的是数据的copy, 不是引用
+    inputReadBuf7 := strings.NewReader("中文123;4567;890")
+    reader7 := bufio.NewReader(inputReadBuf7)
+    for ; ;  {
+        line, err := reader7.ReadBytes(';')
+        fmt.Println(string(line))
+        if err != nil {
+            break
+        }
+    }
+ 
+ 
+    // 11: ReadString返回的是字符串, 不是bytes
+    inputReadBuf8 := strings.NewReader("中文123;4567;890")
+    reader8 := bufio.NewReader(inputReadBuf8)
+    for ; ;  {
+        line, err := reader8.ReadString(';')
+        fmt.Println(line)
+        if err != nil {
+            break
+        }
+    }
+ 
+ 
+    //12: Flush函数用于提交数据, 立即更新
+    // Available函数返回缓存中的可以空间
+    // b10是保存数据的数组, 不是writer的缓冲区, 别搞错了
+    b10 := bytes.NewBuffer(make([]byte, 30))
+    // 下面会分配4096字节空间缓冲区
+    writer10 := bufio.NewWriter(b10)
+    writer10.WriteString("1234567890")
+    // 此时没有flush, 那么输出的是"", 但是缓冲区使用了10个字节, 那么剩下4086, Buffered()返回的是缓冲区还没有提交的数据, 此处显然是10
+    fmt.Println(writer10.Available(), writer10.Buffered(), b10)
+    // 下面flush后, 将缓冲区的数据全部写入b10中, 缓冲区被清空, 所以缓冲区变成4096, Buffered()返回的是0, 说明数据被写入
+    writer10.Flush()
+    fmt.Println(writer10.Available(), writer10.Buffered(), b10)
+ 
+ 
+    // 13: WriteString(...), Write(...), WriteByte(...), WriteRune(...)函数
+    // 都是写数据函数
+    b11 := bytes.NewBuffer(make([]byte, 1024))
+    writer11 := bufio.NewWriter(b11)
+    writer11.WriteString("ABC")
+    writer11.WriteByte(byte('M'))
+    // Rune的意思是: 代表一个字符, 那么需要一次一个字符写入
+    writer11.WriteRune(rune('好'))
+    writer11.WriteRune(rune('么'))
+    writer11.Write([]byte("1234567890"))
+    writer11.Flush()
+    fmt.Println(b11)
+ 
+ 
+    // 14: WriteTo函数
+    inputReadBuf9 := strings.NewReader("中文1234567890")
+    reader9 := bufio.NewReader(inputReadBuf9)
+    b9 := bytes.NewBuffer(make([]byte, 0))
+    reader9.WriteTo(b9)
+    fmt.Println(b9)
+ 
+ 
+    // 15: ReadFrom函数
+    inputReadBuf15 := strings.NewReader("率哪来的顺丰内部了第三方吧")
+    b15 := bytes.NewBuffer(make([]byte, 0))
+    writer15 := bufio.NewWriter(b15)
+    writer15.ReadFrom(inputReadBuf15)
+    fmt.Println(b15)
+}
+```
+
+
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+
+	//标准输出
+	fmt.Print("单行输出")
+	fmt.Println("换行输出")
+	fmt.Printf("格式化字符串%d",1000)
+	fmt.Println("-----------------------------------------")
+	//标准输入
+	var name string
+	var age int64
+	fmt.Println("请输入您的姓名：")
+	fmt.Scan(&name)
+	fmt.Println("请输入您的年龄：")
+	fmt.Scan(&age)
+	fmt.Printf("欢迎：%s回来！年龄：%d",name,age)
+}
+
+```
+
+
+
 # 数据类型
 
 在 Go 编程语言中，数据类型用于声明函数和变量。
@@ -379,6 +715,8 @@ Go 语言按类别有以下几种数据类型：
 | **数字类型**   | 整型 int 和浮点型 float，Go 语言支持整型和浮点型数字，并且原生支持复数，其中位的运算采用补码。 |
 | **字符串类型** | 字符串就是一串固定长度的字符连接起来的字符序列。Go的字符串是由单个字节连接起来的。Go语言的字符串的字节使用UTF-8编码标识Unicode文本。 |
 | **派生类型**   | 包括：(a) 指针类型（Pointer）(b) 数组类型(c) 结构体类型(struct)(d) 联合体类型 (union)(e) 函数类型(f) 切片类型(g) 接口类型（interface）(h) Map 类型(i) Channel 类型 |
+
+- 注意某些编程语言对于“真"的定义比较宽松。 例如，Python和JavaScript就把空文本""和数字零看作是“假”， 但是Ruby和Elixir却把这两个值看作是“真”。 对Go来说，true是唯一的真值，而false则是唯一的假值。
 
 ------
 
@@ -428,13 +766,13 @@ Go 语言按类别有以下几种数据类型：
 
 Go 语言变量名由字母、数字、下划线组成，其中首个字母不能为数字。
 
-声明变量的一般形式是使用 var 关键字：
+声明变量的一般形式是使用`var`关键字：
 
 ```go
 var identifier type
 ```
 
-### 变量声明
+## 变量声明
 
 第一种，指定变量类型，声明后若不赋值，使用默认值。
 
@@ -479,7 +817,7 @@ func main(){
 hello world false
 ```
 
-### 多变量声明
+## 多变量声明
 
 ```go
 // 类型相同多个变量, 非全局变量
@@ -564,11 +902,11 @@ func main(){
 
 ## 简短形式，使用 := 赋值操作符
 
-我们知道可以在变量的初始化时省略变量的类型而由系统自动推断，声明语句写上 var 关键字其实是显得有些多余了，因此我们可以将它们简写为 a := 50 或 b := false。
+我们知道可以**在变量的初始化时省略变量的类型而由系统自动推断**，声明语句写上 var 关键字其实是显得有些多余了，因此我们可以将它们简写为 a := 50 或 b := false。
 
 a 和 b 的类型（int 和 bool）将由编译器自动推断。
 
-这是使用变量的首选形式，但是它只能被用在函数体内，而不可以用于全局变量的声明与赋值。使用操作符 := 可以高效地创建一个新的变量，称之为初始化声明。
+这是使用变量的首选形式，但是它只能被用在函数体内，而不可以用于全局变量的声明与赋值。使用操作符 := 可以高效地创建一个新的变量，称之为**初始化声明**。
 
 ### 注意事项
 
@@ -626,6 +964,12 @@ a, b, c := 5, 7, "abc"
 _ 实际上是一个只写变量，你不能得到它的值。这样做是因为 Go 语言中你必须使用所有被声明的变量，但有时你并不需要使用从一个函数得到的所有返回值。
 
 并行赋值也被用于当一个函数返回多个返回值时，比如这里的 val 和错误 err 是通过调用 Func1 函数同时得到：val, err = Func1(var1)。
+
+### =和:=的区别
+
+> 在Go中，:=用于声明+赋值，而=仅用于赋值。
+>
+> 例如，var foo int = 10与foo := 10相同。
 
 ---
 
@@ -843,6 +1187,8 @@ Go 语言内置的运算符有：
 | %      | 求余 | B % A 输出结果 0   |
 | ++     | 自增 | A++ 输出结果 11    |
 | --     | 自减 | A-- 输出结果 9     |
+
+- ==Go并不支持++count这种见诸C和Java等语言中的前置增量操作==
 
 以下实例演示了各个算术运算符的用法：
 
@@ -1525,6 +1871,12 @@ func main() {
 ```go
 x 的类型 :<nil>
 ```
+
+### ==fallthrough==
+
+> 注意：在C、Java、JavaScript等语言中，下降是switch语句各个分支的默认行为，而Go对此采取了更为谨慎的做法，即用户需要显式地使用`fallthrough`关键字才会引发下降。
+
+
 
 
 
@@ -2506,6 +2858,97 @@ func main() {
 ```
 
 ---
+
+# 常用函数
+
+## math
+
+### 数学常数
+
+```go
+// Mathematical constants.
+const (
+	E   = 2.71828182845904523536028747135266249775724709369995957496696763 
+	Pi  = 3.14159265358979323846264338327950288419716939937510582097494459 
+	Phi = 1.61803398874989484820458683436563811772030917980576286213544862 
+	Sqrt2   = 1.41421356237309504880168872420969807856967187537694807317667974
+	SqrtE   = 1.64872127070012814684865078781416357165377610071014801157507931 
+	SqrtPi  = 1.77245385090551602729816748334114518279754945612238712821380779 
+	SqrtPhi = 1.27201964951406896425242246173749149171560804184009624861664038 
+	Ln2    = 0.693147180559945309417232121458176568075500134360255254120680009 
+	Log2E  = 1 / Ln2
+	Ln10   = 2.30258509299404568401799145468436420760110148862877297603332790 
+	Log10E = 1 / Ln10
+)
+
+// Floating-point limit values.
+// Max is the largest finite value representable by the type.
+// SmallestNonzero is the smallest positive, non-zero value representable by the type.
+const (
+	MaxFloat32= 3.40282346638528859811704183484516925440e+38  // 2**127 * (2**24 - 1) / 2**23
+	SmallestNonzeroFloat32 = 1.401298464324817070923729583289916131280e-45 // 1 / 2**(127 - 1 + 23)
+
+	MaxFloat64= 1.797693134862315708145274237317043567981e+308 // 2**1023 * (2**53 - 1) / 2**52
+	SmallestNonzeroFloat64 = 4.940656458412465441765687928682213723651e-324 // 1 / 2**(1023 - 1 + 52)
+)
+
+// Integer limit values.
+const (
+	MaxInt8   = 1<<7 - 1
+	MinInt8   = -1 << 7
+	MaxInt16  = 1<<15 - 1
+	MinInt16  = -1 << 15
+	MaxInt32  = 1<<31 - 1
+	MinInt32  = -1 << 31
+	MaxInt64  = 1<<63 - 1
+	MinInt64  = -1 << 63
+	MaxUint8  = 1<<8 - 1
+	MaxUint16 = 1<<16 - 1
+	MaxUint32 = 1<<32 - 1
+	MaxUint64 = 1<<64 - 1
+)
+
+```
+
+### 数学函数
+
+```go
+var i, j float64 = 12.3, 9.6
+//向下取整
+fmt.Println(math.Floor(i)) //输出:12
+//向上取整
+fmt.Println(math.Ceil(i)) //输出:13
+//绝对值
+fmt.Println(math.Abs(i)) //输出:12.3
+//返回值分别整数位和小数位,小数位可能出现误差
+num, decimal := math.Modf(i)
+fmt.Println(num, decimal)
+//返回两个变量中大的值
+fmt.Println(math.Max(i, j)) //输出:12.3
+//返回两个变量中小的值
+fmt.Println(math.Min(i, j)) //输出:9.6
+//x的y次方
+fmt.Println(math.Pow(3, 2)) //输出:输出9
+//四舍五入
+fmt.Println(math.Round(i)) //输出:12
+
+```
+
+
+
+### 随机数
+
+> - math/rand实现了伪随机数生成器
+> - 在Go语言中随机数需要设置种子,如果不设置种子随机数的结果每次运行都相同。
+> - 默认种子是1,且相同种子产生的随机数是相同的.
+> - 可以使用当前时间的纳秒差计算随机数,在一定程度上保证了种子的唯一性
+
+```go
+rand.Seed(time.Now().UnixNano())
+fmt.Println(rand.Int63n(10))
+```
+
+
 
 # 变量作用域
 
@@ -5067,7 +5510,7 @@ v := <-ch  // 从Channel ch中接收数据，并将数据赋值给v
 ch := make(chan int)
 ```
 
-## 定义
+### 定义
 
 Channel类型的定义格式如下：
 
@@ -5153,7 +5596,7 @@ var x, ok = <-ch
 
 如果OK 是false，表明接收的x是产生的零值，这个channel被关闭了或者为空。
 
-## blocking
+### blocking
 
 默认情况下，发送和接收会一直阻塞着，直到另一方准备好。这种方式可以用来在gororutine中进行同步，而不必使用显示的锁或者条件变量。
 
@@ -5179,13 +5622,13 @@ func main() {
 }
 ```
 
-## Buffered Channels
+### Buffered Channels
 
 make的第二个参数指定缓存的大小：ch := make(chan int, 100)。
 
 通过缓存的使用，可以尽量避免阻塞，提供应用的性能。
 
-## Range
+### Range
 
 for …… range语句可以处理Channel。
 
@@ -5213,7 +5656,7 @@ func main() {
 
 range c产生的迭代值为Channel中发送的值，它会一直迭代直到channel被关闭。上面的例子中如果把close(c)注释掉，程序会一直阻塞在for …… range那一行。
 
-## select
+### select
 
 select语句选择一组可能的send操作和receive操作去处理。它类似switch,但是只是用来处理通讯(communication)操作。它的case可以是send语句，也可以是receive语句，亦或者default。
 
@@ -5267,7 +5710,7 @@ for {
 }
 ```
 
-### timeout
+#### timeout
 
 select有很重要的一个应用就是超时处理。 因为上面我们提到，如果没有case需要处理，select语句就会一直阻塞着。这时候我们可能就需要一个超时操作，用来处理超时的情况。下面这个例子我们会在2秒后往channel c1中发送一个数据，但是select设置为1秒超时,因此我们会打印出timeout 1,而不是result 1。
 
@@ -5292,7 +5735,7 @@ func main() {
 
 其实它利用的是time.After方法，它返回一个类型为<-chan Time的单向的channel，在指定的时间发送一个当前时间给返回的channel中。
 
-## Timer和Ticker
+### Timer和Ticker
 
 我们看一下关于时间的两个Channel。timer是一个定时器，代表未来的一个单一事件，你可以告诉timer你要等待多长时间，它提供一个Channel，在将来的那个时间那个Channel提供了一个时间值。下面的例子中第二行会阻塞2秒钟左右的时间，直到时间到了才会继续执行。
 
@@ -5331,7 +5774,7 @@ go func() {
 
 类似timer, ticker也可以通过Stop方法来停止。一旦它停止，接收者不再会从channel中接收数据了。
 
-## close
+### close
 
 内建的close方法可以用来关闭channel。
 
@@ -5386,7 +5829,7 @@ i, ok := <-c
 fmt.Printf("%d, %t", i, ok) //0, false
 ```
 
-## 同步
+### 同步
 
 channel可以用在goroutine之间的同步。下面的例子中main goroutine通过done channel等待worker完成任务。 worker做完任务后只需往channel发送一个数据就可以通知main goroutine任务完成。
 
@@ -5409,5 +5852,7 @@ func main() {
 }
 ```
 
+# 注意
 
-
+- Go并不支持++count这种见诸C和Java等语言中的前置增量操作
+- 注意某些编程语言对于“真"的定义比较宽松。 例如，Python和JavaScript就把空文本""和数字零看作是“假”， 但是Ruby和Elixir却把这两个值看作是“真”。 对Go来说，true是唯一的真值，而false则是唯一的假值。
