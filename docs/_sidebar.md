@@ -4,7 +4,6 @@
 
 * [基本技能](basic_skill)
 
-  * [Git](Basic_skill/Git) 
   * [Linux](Basic_skill/Linux)
   * [Python语言](Basic_skill/Python)
   * [Go语言](Basic_skill/Go)

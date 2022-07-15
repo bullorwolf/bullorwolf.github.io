@@ -6,8 +6,6 @@
 
 * [基本技能](basic_skill)
 
-  * [Git](Basic_skill/Git) 
-  
   * [Linux](Basic_skill/Linux)
   
   * [Python语言](Basic_skill/Python)
@@ -21,7 +19,6 @@
   * [Docker](Basic_knowledge/Docker)
   
   * [Kubernetes](Basic_knowledge/Kubernetes)
-  
   
 * [招聘需求](job_needs)
 
